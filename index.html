@@ -3,8 +3,7 @@
 <head>
     <title>KChess</title>
 
-    <link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard-1.0.0.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 
     <style>
         body {
@@ -18,14 +17,58 @@
             font-size: 42px;
         }
 
-        #board {
-            width: 480px;
-            margin: 20px auto;
-        }
-
         #status {
             font-size: 20px;
             margin: 15px;
+        }
+
+        #board {
+            width: 480px;
+            height: 480px;
+            margin: 20px auto;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+        }
+
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 44px;
+            user-select: none;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .square:active {
+            cursor: grabbing;
+        }
+
+        .light {
+            background: #f0d9b5;
+        }
+
+        .dark {
+            background: #b58863;
+        }
+
+        .selected {
+            background: #f6e05e !important;
+        }
+
+        .possible {
+            box-shadow: inset 0 0 0 5px rgba(0, 200, 0, 0.5);
+        }
+
+        .white {
+            color: white;
+            text-shadow: 2px 2px 3px #555;
+        }
+
+        .black {
+            color: black;
         }
 
         button {
@@ -48,79 +91,211 @@
 
 <button onclick="newGame()">🔄 New Game</button>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard-1.0.0.min.js"></script>
-
 <script>
 
 const game = new Chess();
 
-let board;
+const board = document.getElementById("board");
+const status = document.getElementById("status");
 
-function onDragStart(source, piece) {
+const symbols = {
+    wp: "♙",
+    wr: "♖",
+    wn: "♘",
+    wb: "♗",
+    wq: "♕",
+    wk: "♔",
 
-    // Only allow White pieces
-    if (game.game_over()) {
-        return false;
-    }
+    bp: "♟",
+    br: "♜",
+    bn: "♞",
+    bb: "♝",
+    bq: "♛",
+    bk: "♚"
+};
 
-    if (game.turn() !== "w") {
-        return false;
-    }
+let selected = null;
+let possibleMoves = [];
 
-    if (piece.search(/^b/) !== -1) {
-        return false;
+
+function drawBoard() {
+
+    board.innerHTML = "";
+
+    const position = game.board();
+
+    for (let row = 0; row < 8; row++) {
+
+        for (let col = 0; col < 8; col++) {
+
+            const square = document.createElement("div");
+
+            const name =
+                String.fromCharCode(97 + col) +
+                (8 - row);
+
+            square.className = "square";
+
+            if ((row + col) % 2 === 0) {
+                square.classList.add("light");
+            } else {
+                square.classList.add("dark");
+            }
+
+            if (selected === name) {
+                square.classList.add("selected");
+            }
+
+            if (possibleMoves.includes(name)) {
+                square.classList.add("possible");
+            }
+
+            const piece = position[row][col];
+
+            if (piece) {
+
+                square.textContent =
+                    symbols[piece.color + piece.type];
+
+                square.classList.add(
+                    piece.color === "w" ? "white" : "black"
+                );
+            }
+
+            // CLICK
+            square.addEventListener("click", function() {
+                clickSquare(name);
+            });
+
+            // DRAG
+            square.addEventListener("pointerdown", function(event) {
+
+                if (game.turn() !== "w") return;
+
+                const piece = game.get(name);
+
+                if (!piece || piece.color !== "w") return;
+
+                selected = name;
+
+                possibleMoves = game.moves({
+                    square: name
+                }).map(move => {
+                    return move.slice(-2);
+                });
+
+                drawBoard();
+
+                event.preventDefault();
+            });
+
+            square.addEventListener("pointerup", function(event) {
+
+                if (selected && possibleMoves.includes(name)) {
+
+                    movePiece(selected, name);
+
+                }
+
+                event.preventDefault();
+            });
+
+            board.appendChild(square);
+        }
     }
 }
 
 
-function onDrop(source, target) {
+function clickSquare(name) {
+
+    if (game.turn() !== "w") return;
+
+    const piece = game.get(name);
+
+    // Select piece
+    if (selected === null) {
+
+        if (piece && piece.color === "w") {
+
+            selected = name;
+
+            possibleMoves = game.moves({
+                square: name
+            }).map(move => move.slice(-2));
+
+            drawBoard();
+        }
+
+        return;
+    }
+
+    // Move
+    if (possibleMoves.includes(name)) {
+
+        movePiece(selected, name);
+
+        return;
+    }
+
+    // Select another piece
+    if (piece && piece.color === "w") {
+
+        selected = name;
+
+        possibleMoves = game.moves({
+            square: name
+        }).map(move => move.slice(-2));
+
+        drawBoard();
+
+        return;
+    }
+
+    selected = null;
+    possibleMoves = [];
+
+    drawBoard();
+}
+
+
+function movePiece(from, to) {
 
     const move = game.move({
-        from: source,
-        to: target,
+        from: from,
+        to: to,
         promotion: "q"
     });
 
-    // Illegal move
-    if (move === null) {
-        return "snapback";
-    }
+    if (!move) return;
+
+    selected = null;
+    possibleMoves = [];
+
+    drawBoard();
 
     updateStatus();
 
-    // Let AI move
-    setTimeout(aiMove, 700);
-}
+    if (!game.game_over()) {
 
-
-function onSnapEnd() {
-
-    board.position(game.fen());
+        setTimeout(aiMove, 700);
+    }
 }
 
 
 function aiMove() {
 
-    if (game.game_over()) {
-        updateStatus();
-        return;
-    }
+    if (game.game_over()) return;
 
     const moves = game.moves();
 
-    if (moves.length === 0) {
-        return;
-    }
+    if (moves.length === 0) return;
 
-    // Simple AI chooses a legal move
     const move =
         moves[Math.floor(Math.random() * moves.length)];
 
     game.move(move);
 
-    board.position(game.fen());
+    drawBoard();
 
     updateStatus();
 }
@@ -131,41 +306,32 @@ function updateStatus() {
     if (game.in_checkmate()) {
 
         if (game.turn() === "w") {
-            document.getElementById("status").textContent =
-                "🤖 Checkmate! AI wins!";
+            status.textContent = "🤖 Checkmate! AI wins!";
         } else {
-            document.getElementById("status").textContent =
-                "🎉 Checkmate! You win!";
+            status.textContent = "🎉 Checkmate! You win!";
         }
 
         return;
     }
 
-    if (game.in_stalemate()) {
-        document.getElementById("status").textContent =
-            "🤝 Stalemate!";
-        return;
-    }
+    if (game.in_stalemate() || game.in_draw()) {
 
-    if (game.in_draw()) {
-        document.getElementById("status").textContent =
-            "🤝 Draw!";
+        status.textContent = "🤝 Draw!";
+
         return;
     }
 
     if (game.in_check()) {
-        document.getElementById("status").textContent =
-            "⚠️ CHECK!";
+
+        status.textContent = "⚠️ CHECK!";
+
         return;
     }
 
-    if (game.turn() === "w") {
-        document.getElementById("status").textContent =
-            "Your turn!";
-    } else {
-        document.getElementById("status").textContent =
-            "🤖 AI is thinking...";
-    }
+    status.textContent =
+        game.turn() === "w"
+        ? "Your turn!"
+        : "🤖 AI is thinking...";
 }
 
 
@@ -173,31 +339,17 @@ function newGame() {
 
     game.reset();
 
-    board.start();
+    selected = null;
+    possibleMoves = [];
 
-    document.getElementById("status").textContent =
+    status.textContent =
         "Your turn! You are White.";
+
+    drawBoard();
 }
 
 
-const config = {
-
-    draggable: true,
-
-    position: "start",
-
-    orientation: "white",
-
-    onDragStart: onDragStart,
-
-    onDrop: onDrop,
-
-    onSnapEnd: onSnapEnd
-
-};
-
-
-board = Chessboard("board", config);
+drawBoard();
 
 </script>
 
