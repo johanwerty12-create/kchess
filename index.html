@@ -26,11 +26,12 @@
         .square {
             width: 60px;
             height: 60px;
-            font-size: 40px;
+            font-size: 42px;
             display: flex;
             justify-content: center;
             align-items: center;
             cursor: pointer;
+            user-select: none;
         }
 
         .light {
@@ -42,7 +43,17 @@
         }
 
         .selected {
-            outline: 4px solid yellow;
+            background: #f6e05e !important;
+        }
+
+        .white-piece {
+            color: white;
+            text-shadow: 2px 2px 2px #555;
+        }
+
+        .black-piece {
+            color: black;
+            text-shadow: 1px 1px 1px #777;
         }
 
         button {
@@ -62,194 +73,188 @@
 
 <body>
 
-    <h1>♟️ KChess</h1>
+<h1>♟️ KChess</h1>
 
-    <div id="status">Your turn!</div>
+<div id="status">Your turn! You are White.</div>
 
-    <div id="board"></div>
+<div id="board"></div>
 
-    <button onclick="newGame()">🔄 New Game</button>
+<button onclick="newGame()">🔄 New Game</button>
 
-    <script>
+<script>
 
-        const pieces = [
-            "♜","♞","♝","♛","♚","♝","♞","♜",
-            "♟","♟","♟","♟","♟","♟","♟","♟",
-            "","","","","","","","",
-            "","","","","","","","",
-            "","","","","","","","",
-            "","","","","","","","",
-            "♙","♙","♙","♙","♙","♙","♙","♙",
-            "♖","♘","♗","♕","♔","♗","♘","♖"
-        ];
+const startingBoard = [
+    "♜","♞","♝","♛","♚","♝","♞","♜",
+    "♟","♟","♟","♟","♟","♟","♟","♟",
+    "","","","","","","","",
+    "","","","","","","","",
+    "","","","","","","","",
+    "","","","","","","","",
+    "♙","♙","♙","♙","♙","♙","♙","♙",
+    "♖","♘","♗","♕","♔","♗","♘","♖"
+];
 
-        let boardPieces = [...pieces];
+let boardPieces = [...startingBoard];
+let selected = null;
+let playerTurn = true;
 
-        let selected = null;
-
-        const board = document.getElementById("board");
-        const status = document.getElementById("status");
+const board = document.getElementById("board");
+const status = document.getElementById("status");
 
 
-        function drawBoard() {
+function isWhite(piece) {
+    return ["♙","♖","♘","♗","♕","♔"].includes(piece);
+}
 
-            board.innerHTML = "";
 
-            for (let i = 0; i < 64; i++) {
+function isBlack(piece) {
+    return ["♟","♜","♞","♝","♛","♚"].includes(piece);
+}
 
-                const square = document.createElement("div");
 
-                square.classList.add("square");
+function drawBoard() {
 
-                if ((Math.floor(i / 8) + i) % 2 === 0) {
-                    square.classList.add("light");
-                } else {
-                    square.classList.add("dark");
-                }
+    board.innerHTML = "";
 
-                square.textContent = boardPieces[i];
+    for (let i = 0; i < 64; i++) {
 
-                if (selected === i) {
-                    square.classList.add("selected");
-                }
+        const square = document.createElement("div");
 
-                square.onclick = function() {
-                    clickSquare(i);
-                };
+        square.classList.add("square");
 
-                board.appendChild(square);
-            }
+        if ((Math.floor(i / 8) + i) % 2 === 0) {
+            square.classList.add("light");
+        } else {
+            square.classList.add("dark");
         }
 
+        if (selected === i) {
+            square.classList.add("selected");
+        }
 
-        function clickSquare(i) {
+        const piece = boardPieces[i];
 
-            // Select a piece
-            if (selected === null) {
+        if (piece) {
+            square.textContent = piece;
 
-                if (boardPieces[i] !== "" &&
-                    boardPieces[i] !== undefined) {
-
-                    // Only allow white pieces
-                    if (isWhite(boardPieces[i])) {
-
-                        selected = i;
-                        drawBoard();
-
-                    }
-                }
-
-                return;
-            }
-
-
-            // Move piece
-            if (selected !== i) {
-
-                boardPieces[i] = boardPieces[selected];
-
-                boardPieces[selected] = "";
-
-                selected = null;
-
-                drawBoard();
-
-                status.textContent = "🤖 AI is thinking...";
-
-                setTimeout(aiMove, 700);
-
+            if (isWhite(piece)) {
+                square.classList.add("white-piece");
             } else {
-
-                selected = null;
-
-                drawBoard();
-
+                square.classList.add("black-piece");
             }
         }
 
+        square.onclick = () => clickSquare(i);
 
-        function isWhite(piece) {
-
-            return ["♙","♖","♘","♗","♕","♔"].includes(piece);
-
-        }
-
-
-        function isBlack(piece) {
-
-            return ["♟","♜","♞","♝","♛","♚"].includes(piece);
-
-        }
+        board.appendChild(square);
+    }
+}
 
 
-        function aiMove() {
+function clickSquare(i) {
 
-            let possibleMoves = [];
+    if (!playerTurn) return;
 
-            for (let from = 0; from < 64; from++) {
+    const piece = boardPieces[i];
 
-                if (isBlack(boardPieces[from])) {
+    // Select a white piece
+    if (selected === null) {
 
-                    for (let to = 0; to < 64; to++) {
-
-                        if (boardPieces[to] === "" ||
-                            isWhite(boardPieces[to])) {
-
-                            possibleMoves.push({
-                                from: from,
-                                to: to
-                            });
-
-                        }
-                    }
-                }
-            }
-
-
-            if (possibleMoves.length === 0) {
-
-                status.textContent = "🎉 You win!";
-
-                return;
-            }
-
-
-            // Pick a random move
-            const move =
-                possibleMoves[
-                    Math.floor(Math.random() * possibleMoves.length)
-                ];
-
-
-            boardPieces[move.to] =
-                boardPieces[move.from];
-
-            boardPieces[move.from] = "";
-
-
+        if (isWhite(piece)) {
+            selected = i;
             drawBoard();
-
-            status.textContent = "Your turn!";
-
         }
 
+        return;
+    }
 
-        function newGame() {
+    // Click another white piece
+    if (isWhite(piece)) {
+        selected = i;
+        drawBoard();
+        return;
+    }
 
-            boardPieces = [...pieces];
+    // Move the selected piece
+    if (selected !== i) {
 
-            selected = null;
+        boardPieces[i] = boardPieces[selected];
+        boardPieces[selected] = "";
 
-            status.textContent = "Your turn!";
+        selected = null;
 
-            drawBoard();
-
-        }
-
+        playerTurn = false;
 
         drawBoard();
 
-    </script>
+        status.textContent = "🤖 AI is thinking...";
+
+        setTimeout(aiMove, 800);
+    }
+}
+
+
+function aiMove() {
+
+    let possibleMoves = [];
+
+    for (let from = 0; from < 64; from++) {
+
+        if (!isBlack(boardPieces[from])) continue;
+
+        for (let to = 0; to < 64; to++) {
+
+            if (
+                boardPieces[to] === "" ||
+                isWhite(boardPieces[to])
+            ) {
+                possibleMoves.push({
+                    from: from,
+                    to: to
+                });
+            }
+        }
+    }
+
+    if (possibleMoves.length === 0) {
+        status.textContent = "🎉 You win!";
+        return;
+    }
+
+    // AI chooses a random move
+    const move =
+        possibleMoves[
+            Math.floor(Math.random() * possibleMoves.length)
+        ];
+
+    boardPieces[move.to] = boardPieces[move.from];
+    boardPieces[move.from] = "";
+
+    drawBoard();
+
+    playerTurn = true;
+
+    status.textContent = "Your turn!";
+}
+
+
+function newGame() {
+
+    boardPieces = [...startingBoard];
+
+    selected = null;
+
+    playerTurn = true;
+
+    status.textContent = "Your turn! You are White.";
+
+    drawBoard();
+}
+
+
+drawBoard();
+
+</script>
 
 </body>
 </html>
