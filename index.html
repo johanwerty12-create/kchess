@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KChess</title>
+
+    <style>
+        body {
+            background: #111827;
+            color: white;
+            font-family: Arial;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 40px;
+        }
+
+        #board {
+            width: 480px;
+            height: 480px;
+            margin: 20px auto;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+        }
+
+        .square {
+            width: 60px;
+            height: 60px;
+            font-size: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .light {
+            background: #f0d9b5;
+        }
+
+        .dark {
+            background: #b58863;
+        }
+
+        .selected {
+            outline: 4px solid yellow;
+        }
+
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+        }
+
+        #status {
+            font-size: 20px;
+            margin: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>♟️ KChess</h1>
+
+    <div id="status">Your turn!</div>
+
+    <div id="board"></div>
+
+    <button onclick="newGame()">🔄 New Game</button>
+
+    <script>
+
+        const pieces = [
+            "♜","♞","♝","♛","♚","♝","♞","♜",
+            "♟","♟","♟","♟","♟","♟","♟","♟",
+            "","","","","","","","",
+            "","","","","","","","",
+            "","","","","","","","",
+            "","","","","","","","",
+            "♙","♙","♙","♙","♙","♙","♙","♙",
+            "♖","♘","♗","♕","♔","♗","♘","♖"
+        ];
+
+        let boardPieces = [...pieces];
+
+        let selected = null;
+
+        const board = document.getElementById("board");
+        const status = document.getElementById("status");
+
+
+        function drawBoard() {
+
+            board.innerHTML = "";
+
+            for (let i = 0; i < 64; i++) {
+
+                const square = document.createElement("div");
+
+                square.classList.add("square");
+
+                if ((Math.floor(i / 8) + i) % 2 === 0) {
+                    square.classList.add("light");
+                } else {
+                    square.classList.add("dark");
+                }
+
+                square.textContent = boardPieces[i];
+
+                if (selected === i) {
+                    square.classList.add("selected");
+                }
+
+                square.onclick = function() {
+                    clickSquare(i);
+                };
+
+                board.appendChild(square);
+            }
+        }
+
+
+        function clickSquare(i) {
+
+            // Select a piece
+            if (selected === null) {
+
+                if (boardPieces[i] !== "" &&
+                    boardPieces[i] !== undefined) {
+
+                    // Only allow white pieces
+                    if (isWhite(boardPieces[i])) {
+
+                        selected = i;
+                        drawBoard();
+
+                    }
+                }
+
+                return;
+            }
+
+
+            // Move piece
+            if (selected !== i) {
+
+                boardPieces[i] = boardPieces[selected];
+
+                boardPieces[selected] = "";
+
+                selected = null;
+
+                drawBoard();
+
+                status.textContent = "🤖 AI is thinking...";
+
+                setTimeout(aiMove, 700);
+
+            } else {
+
+                selected = null;
+
+                drawBoard();
+
+            }
+        }
+
+
+        function isWhite(piece) {
+
+            return ["♙","♖","♘","♗","♕","♔"].includes(piece);
+
+        }
+
+
+        function isBlack(piece) {
+
+            return ["♟","♜","♞","♝","♛","♚"].includes(piece);
+
+        }
+
+
+        function aiMove() {
+
+            let possibleMoves = [];
+
+            for (let from = 0; from < 64; from++) {
+
+                if (isBlack(boardPieces[from])) {
+
+                    for (let to = 0; to < 64; to++) {
+
+                        if (boardPieces[to] === "" ||
+                            isWhite(boardPieces[to])) {
+
+                            possibleMoves.push({
+                                from: from,
+                                to: to
+                            });
+
+                        }
+                    }
+                }
+            }
+
+
+            if (possibleMoves.length === 0) {
+
+                status.textContent = "🎉 You win!";
+
+                return;
+            }
+
+
+            // Pick a random move
+            const move =
+                possibleMoves[
+                    Math.floor(Math.random() * possibleMoves.length)
+                ];
+
+
+            boardPieces[move.to] =
+                boardPieces[move.from];
+
+            boardPieces[move.from] = "";
+
+
+            drawBoard();
+
+            status.textContent = "Your turn!";
+
+        }
+
+
+        function newGame() {
+
+            boardPieces = [...pieces];
+
+            selected = null;
+
+            status.textContent = "Your turn!";
+
+            drawBoard();
+
+        }
+
+
+        drawBoard();
+
+    </script>
+
+</body>
+</html>
