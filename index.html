@@ -15,6 +15,19 @@
 
         h1 {
             font-size: 42px;
+            margin-bottom: 10px;
+        }
+
+        #controls {
+            margin: 15px;
+        }
+
+        select, button {
+            font-size: 17px;
+            padding: 9px 14px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
         }
 
         #status {
@@ -34,9 +47,10 @@
             width: 60px;
             height: 60px;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             font-size: 44px;
+            user-select: none;
         }
 
         .light {
@@ -47,17 +61,8 @@
             background: #b58863;
         }
 
-        .selected {
-            background: yellow !important;
-        }
-
-        .possible {
-            box-shadow: inset 0 0 0 5px lime;
-        }
-
         .piece {
             cursor: grab;
-            user-select: none;
         }
 
         .piece:active {
@@ -73,12 +78,12 @@
             color: black;
         }
 
-        button {
-            font-size: 18px;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
+        .selected {
+            background: yellow !important;
+        }
+
+        .possible {
+            box-shadow: inset 0 0 0 5px lime;
         }
     </style>
 </head>
@@ -86,6 +91,20 @@
 <body>
 
 <h1>♟️ KChess</h1>
+
+<div id="controls">
+
+    <label>🤖 Bot:</label>
+
+    <select id="difficulty" onchange="changeDifficulty()">
+        <option value="1">Easy — 250 ELO</option>
+        <option value="2">Medium — 500 ELO</option>
+        <option value="3" selected>Hard — 1000 ELO</option>
+        <option value="4">Very Hard — 1500 ELO</option>
+        <option value="5">Expert — 2000 ELO</option>
+    </select>
+
+</div>
 
 <div id="status">Your turn! You are White.</div>
 
@@ -99,10 +118,15 @@ const game = new Chess();
 
 const board = document.getElementById("board");
 const status = document.getElementById("status");
+const difficulty = document.getElementById("difficulty");
 
 let selected = null;
 
+let botLevel = 3;
+
+
 const pieces = {
+
     wp: "♙",
     wr: "♖",
     wn: "♘",
@@ -118,6 +142,21 @@ const pieces = {
     bk: "♚"
 };
 
+
+/* PIECE VALUES */
+
+const values = {
+
+    p: 100,
+    n: 320,
+    b: 330,
+    r: 500,
+    q: 900,
+    k: 20000
+};
+
+
+/* DRAW BOARD */
 
 function drawBoard() {
 
@@ -150,87 +189,107 @@ function drawBoard() {
 
             if (piece) {
 
-                const pieceElement = document.createElement("div");
+                const element =
+                    document.createElement("div");
 
-                pieceElement.textContent =
+                element.textContent =
                     pieces[piece.color + piece.type];
 
-                pieceElement.classList.add("piece");
+                element.classList.add("piece");
+
+                element.classList.add(
+                    piece.color === "w"
+                    ? "white"
+                    : "black"
+                );
+
+                /* DRAGGING */
 
                 if (piece.color === "w") {
-                    pieceElement.classList.add("white");
-                } else {
-                    pieceElement.classList.add("black");
+
+                    element.draggable = true;
+
+                    element.addEventListener(
+                        "dragstart",
+                        function(event) {
+
+                            if (game.turn() !== "w") {
+                                event.preventDefault();
+                                return;
+                            }
+
+                            selected = name;
+
+                            event.dataTransfer.setData(
+                                "text/plain",
+                                name
+                            );
+                        }
+                    );
                 }
 
-                /*
-                    DRAG START
-                */
-                pieceElement.draggable = piece.color === "w";
+                /* CLICK */
 
-                pieceElement.addEventListener("dragstart", function(event) {
+                element.addEventListener(
+                    "click",
+                    function(event) {
 
-                    if (game.turn() !== "w") {
-                        event.preventDefault();
-                        return;
+                        event.stopPropagation();
+
+                        if (
+                            piece.color === "w" &&
+                            game.turn() === "w"
+                        ) {
+
+                            selected = name;
+
+                            drawBoard();
+                        }
                     }
+                );
 
-                    selected = name;
-
-                    event.dataTransfer.setData(
-                        "text/plain",
-                        name
-                    );
-                });
-
-                /*
-                    CLICK
-                */
-                pieceElement.addEventListener("click", function() {
-
-                    if (piece.color === "w" &&
-                        game.turn() === "w") {
-
-                        selected = name;
-
-                        drawBoard();
-                    }
-                });
-
-                square.appendChild(pieceElement);
+                square.appendChild(element);
             }
 
-            /*
-                DROP
-            */
-            square.addEventListener("dragover", function(event) {
+            /* DROP */
 
-                event.preventDefault();
-
-            });
-
-            square.addEventListener("drop", function(event) {
-
-                event.preventDefault();
-
-                const from =
-                    event.dataTransfer.getData("text/plain");
-
-                movePiece(from, name);
-            });
-
-            /*
-                CLICK DESTINATION
-            */
-            square.addEventListener("click", function() {
-
-                if (selected !== null &&
-                    selected !== name) {
-
-                    movePiece(selected, name);
+            square.addEventListener(
+                "dragover",
+                function(event) {
+                    event.preventDefault();
                 }
+            );
 
-            });
+            square.addEventListener(
+                "drop",
+                function(event) {
+
+                    event.preventDefault();
+
+                    const from =
+                        event.dataTransfer.getData(
+                            "text/plain"
+                        );
+
+                    movePiece(from, name);
+                }
+            );
+
+            /* CLICK DESTINATION */
+
+            square.addEventListener(
+                "click",
+                function() {
+
+                    if (
+                        selected !== null &&
+                        selected !== name
+                    ) {
+
+                        movePiece(selected, name);
+                    }
+                }
+            );
 
             board.appendChild(square);
         }
@@ -238,13 +297,18 @@ function drawBoard() {
 }
 
 
+/* PLAYER MOVE */
+
 function movePiece(from, to) {
 
     if (!from) return;
 
     const move = game.move({
+
         from: from,
+
         to: to,
+
         promotion: "q"
     });
 
@@ -254,11 +318,10 @@ function movePiece(from, to) {
 
         drawBoard();
 
-        status.textContent = "❌ Illegal move!";
+        status.textContent =
+            "❌ Illegal move!";
 
-        setTimeout(function() {
-            updateStatus();
-        }, 800);
+        setTimeout(updateStatus, 800);
 
         return;
     }
@@ -269,27 +332,92 @@ function movePiece(from, to) {
 
     if (!game.game_over()) {
 
-        setTimeout(aiMove, 700);
+        setTimeout(aiMove, 500);
     }
 }
 
 
+/* AI */
+
 function aiMove() {
 
-    if (game.game_over()) {
-        return;
-    }
+    if (game.game_over()) return;
+
+    status.textContent =
+        "🤖 Bot is thinking...";
 
     const moves = game.moves();
 
-    if (moves.length === 0) {
-        return;
+    if (moves.length === 0) return;
+
+    let chosenMove;
+
+
+    /*
+        EASY
+        Mostly random
+    */
+
+    if (botLevel === 1) {
+
+        chosenMove =
+            moves[
+                Math.floor(
+                    Math.random() * moves.length
+                )
+            ];
     }
 
-    const randomMove =
-        moves[Math.floor(Math.random() * moves.length)];
 
-    game.move(randomMove);
+    /*
+        MEDIUM
+        Prefers captures
+    */
+
+    else if (botLevel === 2) {
+
+        chosenMove =
+            findBestSimpleMove(moves);
+    }
+
+
+    /*
+        HARD
+        Minimax depth 2
+    */
+
+    else if (botLevel === 3) {
+
+        chosenMove =
+            findBestMove(2);
+    }
+
+
+    /*
+        VERY HARD
+        Minimax depth 3
+    */
+
+    else if (botLevel === 4) {
+
+        chosenMove =
+            findBestMove(3);
+    }
+
+
+    /*
+        EXPERT
+        Minimax depth 4
+    */
+
+    else {
+
+        chosenMove =
+            findBestMove(4);
+    }
+
+
+    game.move(chosenMove);
 
     drawBoard();
 
@@ -297,50 +425,232 @@ function aiMove() {
 }
 
 
+/* EASY AI HELPER */
+
+function findBestSimpleMove(moves) {
+
+    let bestMoves = [];
+
+    let bestValue = -999999;
+
+    for (const move of moves) {
+
+        let value = 0;
+
+        if (move.includes("x")) {
+            value += 500;
+        }
+
+        if (move.includes("q")) {
+            value += 100;
+        }
+
+        value += Math.random() * 300;
+
+        if (value > bestValue) {
+
+            bestValue = value;
+
+            bestMoves = [move];
+
+        } else if (value === bestValue) {
+
+            bestMoves.push(move);
+        }
+    }
+
+    return bestMoves[
+        Math.floor(
+            Math.random() * bestMoves.length
+        )
+    ];
+}
+
+
+/* MINIMAX */
+
+function findBestMove(depth) {
+
+    const moves = game.moves();
+
+    let bestMove = moves[0];
+
+    let bestScore = -Infinity;
+
+    for (const move of moves) {
+
+        game.move(move);
+
+        const score =
+            -minimax(
+                depth - 1,
+                -Infinity,
+                Infinity
+            );
+
+        game.undo();
+
+        if (score > bestScore) {
+
+            bestScore = score;
+
+            bestMove = move;
+        }
+    }
+
+    return bestMove;
+}
+
+
+function minimax(depth, alpha, beta) {
+
+    if (depth === 0 ||
+        game.game_over()) {
+
+        return evaluateBoard();
+    }
+
+    const moves = game.moves();
+
+    let bestScore = -Infinity;
+
+    for (const move of moves) {
+
+        game.move(move);
+
+        const score =
+            -minimax(
+                depth - 1,
+                -beta,
+                -alpha
+            );
+
+        game.undo();
+
+        bestScore =
+            Math.max(
+                bestScore,
+                score
+            );
+
+        alpha =
+            Math.max(
+                alpha,
+                score
+            );
+
+        if (alpha >= beta) {
+            break;
+        }
+    }
+
+    return bestScore;
+}
+
+
+/* POSITION EVALUATION */
+
+function evaluateBoard() {
+
+    if (game.in_checkmate()) {
+
+        return game.turn() === "b"
+            ? -999999
+            : 999999;
+    }
+
+    let score = 0;
+
+    const position = game.board();
+
+    for (let row = 0; row < 8; row++) {
+
+        for (let col = 0; col < 8; col++) {
+
+            const piece =
+                position[row][col];
+
+            if (!piece) continue;
+
+            const value =
+                values[piece.type];
+
+            if (piece.color === "b") {
+                score += value;
+            } else {
+                score -= value;
+            }
+        }
+    }
+
+    return score;
+}
+
+
+/* DIFFICULTY */
+
+function changeDifficulty() {
+
+    botLevel =
+        Number(difficulty.value);
+
+    newGame();
+}
+
+
+/* STATUS */
+
 function updateStatus() {
 
     if (game.in_checkmate()) {
 
         if (game.turn() === "w") {
-            status.textContent = "🤖 Checkmate! AI wins!";
+
+            status.textContent =
+                "🤖 Checkmate! Bot wins!";
+
         } else {
-            status.textContent = "🎉 Checkmate! You win!";
+
+            status.textContent =
+                "🎉 Checkmate! You win!";
         }
 
         return;
     }
 
-    if (game.in_stalemate()) {
+    if (
+        game.in_stalemate() ||
+        game.in_draw()
+    ) {
 
-        status.textContent = "🤝 Stalemate!";
-
-        return;
-    }
-
-    if (game.in_draw()) {
-
-        status.textContent = "🤝 Draw!";
+        status.textContent =
+            "🤝 Draw!";
 
         return;
     }
 
     if (game.in_check()) {
 
-        status.textContent = "⚠️ CHECK!";
+        status.textContent =
+            "⚠️ CHECK!";
 
         return;
     }
 
     if (game.turn() === "w") {
 
-        status.textContent = "Your turn!";
+        status.textContent =
+            "Your turn!";
 
     } else {
 
-        status.textContent = "🤖 AI is thinking...";
+        status.textContent =
+            "🤖 Bot is thinking...";
     }
 }
 
+
+/* NEW GAME */
 
 function newGame() {
 
